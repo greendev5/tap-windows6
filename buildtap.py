@@ -30,6 +30,7 @@ class BuildTAPWindows(object):
         # driver signing options
         self.sign_cn = opt.cert
         self.crosscert = os.path.join(self.top, opt.crosscert)
+        self.sign_pass = opt.certpass
 
         self.inf2cat_cmd = os.path.join(self.ddk_path, 'bin', 'selfsign', 'Inf2Cat')
         self.signtool_cmd = os.path.join(self.ddk_path, 'bin', 'x86', 'SignTool')
@@ -407,10 +408,11 @@ class BuildTAPWindows(object):
         self.system("%s /driver:%s /os:%s" % (self.inf2cat_cmd, self.drvdir(self.src, x64), oslist))
 
     def sign(self, file):
-            self.system("%s sign /v /ac %s /s my /n %s /t %s %s" % (
+            self.system('%s sign /v /ac %s /f "%s" /p "%s" /t %s %s' % (
                     self.signtool_cmd,
                     self.crosscert,
                     self.sign_cn,
+                    self.sign_pass,
                     self.timestamp_server,
                     file,
                 ))
@@ -441,7 +443,7 @@ if __name__ == '__main__':
     # defaults
     src = os.path.dirname(os.path.realpath(__file__))
     cert = "openvpn"
-    crosscert = "MSCV-VSClass3.cer" # cross certs available here: http://msdn.microsoft.com/en-us/library/windows/hardware/dn170454(v=vs.85).aspx
+    crosscert = "addtrustexternalcaroot_kmod.crt" # cross certs available here: http://msdn.microsoft.com/en-us/library/windows/hardware/dn170454(v=vs.85).aspx
     timestamp = "http://timestamp.verisign.com/scripts/timstamp.dll"
 
     op.add_option("-s", "--src", dest="src", metavar="SRC",
@@ -461,9 +463,12 @@ if __name__ == '__main__':
     op.add_option("--cert", dest="cert", metavar="CERT",
                   default=cert,
                   help="Common name of code signing certificate, default=%s" % (cert,))
+    op.add_option("--certpass", dest="certpass", metavar="CERT",
+                  default='qwerty',
+                  help="Password of code signing certificate, default=%s" % ('qwerty',))
     op.add_option("--crosscert", dest="crosscert", metavar="CERT",
-	              default=crosscert,
-				  help="The cross-certificate file to use, default=%s" % (crosscert,))
+                  default=crosscert,
+                  help="The cross-certificate file to use, default=%s" % (crosscert,))
     op.add_option("--timestamp", dest="timestamp", metavar="URL",
                   default=timestamp,
                   help="Timestamp URL to use, default=%s" % (timestamp,))
