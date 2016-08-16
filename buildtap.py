@@ -33,9 +33,11 @@ class BuildTAPWindows(object):
         self.sign_pass = opt.certpass
 
         self.inf2cat_cmd = os.path.join(self.ddk_path, 'bin', 'selfsign', 'Inf2Cat')
-        self.signtool_cmd = os.path.join(self.ddk_path, 'bin', 'x86', 'SignTool')
+        self.signtool_cmd = 'SignTool'#os.path.join(self.ddk_path, 'bin', 'x86', 'SignTool')
 
         self.timestamp_server = opt.timestamp
+        self.sha1certhumbprint = opt.sha1certhumbprint
+        self.sha256certhumbprint = opt.sha256certhumbprint
 
     # split a path into a list of components
     @staticmethod
@@ -408,14 +410,30 @@ class BuildTAPWindows(object):
         self.system("%s /driver:%s /os:%s" % (self.inf2cat_cmd, self.drvdir(self.src, x64), oslist))
 
     def sign(self, file):
-            self.system('%s sign /v /ac %s /f "%s" /p "%s" /t %s %s' % (
-                    self.signtool_cmd,
-                    self.crosscert,
-                    self.sign_cn,
-                    self.sign_pass,
-                    self.timestamp_server,
-                    file,
-                ))
+            if self.sha256certhumbprint is not None and self.sha1certhumbprint is not None:
+                self.system('%s sign /v /ac "%s" /t %s /fd sha256 /sha1 %s %s' % (
+                        self.signtool_cmd,
+                        self.crosscert,
+                        self.timestamp_server,
+                        self.sha256certhumbprint,
+                        file,
+                    ))
+                self.system('%s sign /v /ac "%s" /tr %s /ph /as /sha1 %s %s' % (
+                        self.signtool_cmd,
+                        self.crosscert,
+                        self.timestamp_server,
+                        self.sha1certhumbprint,
+                        file,
+                    ))
+            else:
+                self.system('%s sign /v /ac %s /f "%s" /p "%s" /t %s %s' % (
+                        self.signtool_cmd,
+                        self.crosscert,
+                        self.sign_cn,
+                        self.sign_pass,
+                        self.timestamp_server,
+                        file,
+                    ))
 
     def sign_driver(self, x64):
         self.sign(self.drvfile(x64, '.cat'))
@@ -444,7 +462,7 @@ if __name__ == '__main__':
     src = os.path.dirname(os.path.realpath(__file__))
     cert = "openvpn"
     crosscert = "addtrustexternalcaroot_kmod.crt" # cross certs available here: http://msdn.microsoft.com/en-us/library/windows/hardware/dn170454(v=vs.85).aspx
-    timestamp = "http://timestamp.verisign.com/scripts/timstamp.dll"
+    timestamp = "http://timestamp.digicert.com"#"http://timestamp.verisign.com/scripts/timstamp.dll"
 
     op.add_option("-s", "--src", dest="src", metavar="SRC",
 
@@ -474,6 +492,12 @@ if __name__ == '__main__':
                   help="Timestamp URL to use, default=%s" % (timestamp,))
     op.add_option("-a", "--oas", action="store_true", dest="oas",
                   help="Build for OpenVPN Access Server clients")
+    op.add_option("--sha1certhumbprint", dest="sha1certhumbprint", metavar="thumbprint",
+                  default=None,
+                  help="The sha1 cert thumbprint, default=%s" % ("None",))
+    op.add_option("--sha256certhumbprint", dest="sha256certhumbprint", metavar="thumbprint",
+                  default=None,
+                  help="The sha256 cert thumbprint, default=%s" % ("None",))
     (opt, args) = op.parse_args()
 
     if len(sys.argv) <= 1:
